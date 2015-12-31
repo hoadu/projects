@@ -1,4 +1,4 @@
-import stock_price_project_settings as setting
+import settings as setting
 import pandas as pd
 from dateutil.parser import parse
 from datetime import timedelta

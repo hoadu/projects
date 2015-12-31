@@ -1,4 +1,4 @@
-import stock_price_project_settings as setting
+import settings as setting
 import requests
 from bs4 import BeautifulSoup
 from sqlalchemy import create_engine, Table, Column, DateTime, Float, BigInteger, MetaData
