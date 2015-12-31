@@ -46,9 +46,9 @@ settings.py
 
   DATA_STORAGE_METHOD
 
-5. if using mysql database, specify database connection, the name of table for storing historical data, and the name of table for storing predicted output
+5. if using mysql database, specify database connection, the name of table for storing historical data, and the name of table for storing predicted output. sqlalchemy is used in this program, whose engine configuration can be found http://docs.sqlalchemy.org/en/latest/core/engines.html.
 
-  DATABASE_CONNECTION = 'mysql+mysqlconnector://thrifty:123456@localhost/thrifty'
+  DATABASE_CONNECTION = 'mysql+mysqlconnector://DB_USER:DB_USER_PASS@HOST_IP/DB_NAME'
 
   HISTORICAL_DATA_TABLE
 
@@ -62,10 +62,9 @@ settings.py
 
 7. specify command used to create cron jobs (find PATHON_PATH by executing "which python")
 
-  CRON_DATA_JOB_COMMAND = '/Users/lilizhang/anaconda/bin/python
- /Users/lilizhang/documents/data_science_project_code/stock_price_data_acquisition.py'
+  CRON_DATA_JOB_COMMAND = 'PYTHON_PATH DATA_ACQUISITION_PYTHON_FILE_PATH'
 
-  CRON_PREDICTION_JOB_COMMAND
+  CRON_PREDICTION_JOB_COMMAND = 'PYTHON_PATH PREDICTION_PYTHON_FILE_PATH'
 
 cron_jobs.py
 
