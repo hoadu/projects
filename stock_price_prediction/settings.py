@@ -3,7 +3,7 @@ import datetime
 QUERY_START_DATE = '1950-01-01'
 QUERY_END_DATE = '2015-12-31'
 
-#change QUERY_START_DATE and QUERY_END_DATE to the below after first-time operation to automate daily data acquisition 
+#change QUERY_START_DATE and QUERY_END_DATE to the below after first-time operation to automate daily data acquisition
 #QUERY_START_DATE = str(datetime.date.today())
 #QUERY_END_DATE = str(datetime.date.today())
 
@@ -11,6 +11,7 @@ PREDICTION_START_DATE = '2015-01-01'
 PREDICTION_END_DATE = str(datetime.date.today())
 PREDICT_TOMMORROW = str(datetime.date.today() + datetime.timedelta(days=1))
 
+#set DATA_STORAGE_METHOD either 'mysql' or 'csv'
 DATA_STORAGE_METHOD = 'mysql'
 
 #customize database_connection with your database API and access info
