@@ -1,11 +1,13 @@
 # The path you want to download the files to. It must exist.
-DATA_PATH  = '/Users/lili/documents/data/'
+PRICE_DATA_PATH  = '/Users/lili/documents/data/electricity_price/'
+LOAD_DATA_PATH = '/Users/lili/documents/data/electricity_load/'
 # The database connection with database user information, password, and database name. The database must exist.
-DATABASE_CONNECTION = 'mysql+mysqlconnector://lili:123@127.0.0.1/price'
+DATABASE_CONNECTION = 'mysql+mysqlconnector://lili:123@127.0.0.1/electricity'
 # The database table name. It will be created automatically.
-TABLE = 'electricity_price'
+PRICE_TABLE = 'electricity_price'
+LOAD_TABLE = 'electricity_load'
 # The database name
-DATABASE_NAME = 'price'
+DATABASE_NAME = 'electricity'
 # The database user
 DATABASE_USER = 'lili'
 # The database password for the user specified
