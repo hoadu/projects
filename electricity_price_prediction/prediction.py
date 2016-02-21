@@ -4,19 +4,21 @@ from pyspark import SparkContext
 from pyspark.sql import SQLContext, Row
 import pandas as pd
 from pandas.tseries.holiday import USFederalHolidayCalendar as calendar
+from pandas.tools.plotting import scatter_matrix
 from pyspark.mllib.regression import LabeledPoint, LinearRegressionWithSGD
 from pyspark.mllib.evaluation import RegressionMetrics
 from pyspark.mllib.stat import Statistics
+from sklearn.linear_model import LinearRegression
 
 def get_settings():
     db_name = settings.DATABASE_NAME
-    table = settings.TABLE
+    table = settings.PRICE_TABLE
     db_user = settings.DATABASE_USER
     db_pass = settings.DATABASE_PASS
     zone_name_to_forecast = settings.ZONE_NAME_TO_FORECAST
     return db_name, table, db_user, db_pass, zone_name_to_forecast
 
-def explore_data(db_name, table, db_user, db_pass, zone_name_to_forecast):
+def predict(db_name, table, db_user, db_pass, zone_name_to_forecast):
     sc = SparkContext()
     sqlContext = SQLContext(sc)
     mysql_url = "jdbc:mysql://localhost:3306/"+db_name
@@ -24,19 +26,32 @@ def explore_data(db_name, table, db_user, db_pass, zone_name_to_forecast):
     df_zone = df[df['Name'] == zone_name_to_forecast]
     pandas_df = df_zone.toPandas()
     pandas_df['Date'] = pd.to_datetime(pandas_df['Date'])
-    pandas_df['hour'] = pd.DatetimeIndex(pandas_df['Date']).hour
-    pandas_df['day_of_week'] = pandas_df['Date'].dt.dayofweek
-    cal = calendar()
-    holidays = cal.holidays(start=pandas_df['Date'].iloc[0], end=pandas_df['Date'].iloc[-1])
-    pandas_df['holiday'] = pandas_df['Date'].isin(holidays)
-    pandas_df['avg_price_past_day'] = pd.rolling_mean(pandas_df['LBMP'], window=24).shift(1)
-    pandas_df['price_past_day'] = pandas_df['LBMP'].shift(24)
-    pandas_df['price_past_week'] = pandas_df['LBMP'].shift(168)
-    plt.scatter(pandas_df.index, pandas_df['LBMP'])
+    pandas_df['year'] = pd.DatetimeIndex(pandas_df['Date']).year
+    pandas_df['squared_losses'] = pandas_df['Marginal_cost_losses'] ** 2
+    pandas_df['squared_congestion'] = pandas_df['Marginal_cost_congestion'] ** 2
+    pandas_df['avg_price_day_1'] = pd.rolling_mean(pandas_df['LBMP'], window=24).shift(1)
+    pandas_df['avg_price_day_7'] = pd.rolling_mean(pandas_df['LBMP'], window=168).shift(1)
+    pandas_df['avg_price_day_28'] = pd.rolling_mean(pandas_df['LBMP'], window=672).shift(1)
+    pandas_df['avg_price_day_364'] = pd.rolling_mean(pandas_df['LBMP'], window=8736).shift(1)
+    pandas_df['std_price_day_7'] = pd.rolling_std(pandas_df['LBMP'], window=168).shift(1)
+    pandas_df['std_price_day_28'] = pd.rolling_std(pandas_df['LBMP'], window=672).shift(1)
+    pandas_df['std_price_day_364'] = pd.rolling_std(pandas_df['LBMP'], window=8736).shift(1)
+    pandas_df['ratio_std_7_28'] = pandas_df['std_price_day_7'] / pandas_df['std_price_day_28']
+    pandas_df['ratio_std_7_364'] = pandas_df['std_price_day_7'] / pandas_df['std_price_day_364']
+    pandas_df['ratio_std_28_364'] = pandas_df['std_price_day_28'] / pandas_df['std_price_day_364']
+    pandas_df['ratio_ave_7_364'] = pandas_df['avg_price_day_7'] / pandas_df['avg_price_day_364']
+    pandas_df['ratio_ave_7_28'] = pandas_df['avg_price_day_7'] / pandas_df['avg_price_day_28']
+    pandas_df['ratio_ave_28_364'] = pandas_df['avg_price_day_28'] / pandas_df['avg_price_day_364']
     pandas_df = pandas_df.dropna(axis=0)
+    scatter_matrix(pandas_df)
+    plt.scatter(pandas_df.index, pandas_df['LBMP'])
+    for column in list(pandas_df)[4:]:
+        pandas_df.plot(kind='scatter', x=column, y='LBMP')
     spark_df = sqlContext.createDataFrame(pandas_df)
     spark_df.printSchema()
-    data = spark_df.map(lambda p: LabeledPoint(p[3], p[6:]))
+
+    # calculate correlation
+    data = spark_df.map(lambda p: LabeledPoint(p[3], p[4:]))
     numFeatures = data.take(1)[0].features.size
     labelRDD = data.map(lambda p: p.label)
     corrType = 'pearson'
@@ -44,32 +59,25 @@ def explore_data(db_name, table, db_user, db_pass, zone_name_to_forecast):
     for i in range(numFeatures):
         featureRDD = data.map(lambda p: p.features[i])
         corr = Statistics.corr(labelRDD, featureRDD, corrType)
-        print '%d\t%g' % (6+i, corr)
-    sc.stop()
-    return pandas_df
+        print '%d\t%g' % (4+i, corr)
 
-def predict(pandas_df):
-    sc = SparkContext()
-    sqlContext = SQLContext(sc)
-    train_df = pandas_df[:-168]
-    test_df = pandas_df[-168:]
-    train = sqlContext.createDataFrame(train_df)
-    test = sqlContext.createDataFrame(test_df)
-    train_data = train.map(lambda p: LabeledPoint(p[3], p[9:]))
-    test_data = test.map(lambda p: LabeledPoint(p[3], p[9:]))
-    model = LinearRegressionWithSGD.train(train_data)
-    tp = test_data.map(lambda p: (float(model.predict(p.features)), p.label))
-    #print tp.collect()
-    #test_mse = tp.map(lambda (t, p): (t - p)**2).reduce(lambda x, y: x + y) / tp.count()
-    #print 'test mse', test_mse
-    metrics = RegressionMetrics(tp)
-    print "MSE = %s" % metrics.meanSquaredError
+    df_prediction = pd.DataFrame()
+    df_prediction['Actual'] = pandas_df.iloc[-24:]['LBMP']
+    train = pandas_df[:-24]
+    test = pandas_df[-24:]
+    regressor = LinearRegression()
+    train_predictors = train[list(train.columns[4:])]
+    train_to_predict = train['LBMP']
+    regressor.fit(train_predictors, train_to_predict)
+    test_predictors = test[list(test.columns[4:])]
+    df_prediction['Predicted_regression'] = regressor.predict(test_predictors)
+    mape_regression = sum(abs(df_prediction['Actual'] - df_prediction['Predicted_regression'])/df_prediction['Actual']) / len(df_prediction['Predicted_regression'])
+    print 'mape is %s' % mape_regression
     sc.stop()
 
 def main():
     db_name, table, db_user, db_pass, zone_name_to_forecast = get_settings()
-    pandas_df = explore_data(db_name, table, db_user, db_pass, zone_name_to_forecast)
-    predict(pandas_df)
+    predict(db_name, table, db_user, db_pass, zone_name_to_forecast)
 
 if __name__ == '__main__':
     main()
