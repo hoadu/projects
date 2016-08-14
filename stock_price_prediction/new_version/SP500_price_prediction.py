@@ -2,12 +2,15 @@ from yahoo_finance import Share
 import pandas as pd
 from sklearn.linear_model import LinearRegression
 from datetime import timedelta
+import settings 
+
+query_start_date = settings.QUERY_START_DATE
+query_end_date = settings.QUERY_END_DATE
+prediction_start_date = settings.PREDICTION_START_DATE
+prediction_end_date = settings.PREDICTION_END_DATE
 
 gspc = Share('^GSPC')
-historical_data = gspc.get_historical('2016-05-01', '2016-08-11')
-
-prediction_start_date = '2016-08-01'
-prediction_end_date = '2016-08-11'
+historical_data = gspc.get_historical(query_start_date, query_end_date)
 
 df = pd.DataFrame(historical_data)
 
@@ -15,35 +18,20 @@ df['Date'] =  pd.to_datetime(df['Date'], format='%Y-%m-%d')
 df['year'] = pd.DatetimeIndex(df['Date']).year
 df = df.set_index('Date', drop=True)
 df = df.sort_index(axis=0, ascending=True)
-
-df['avg_close_price_day_2'] = pd.rolling_mean(df['Close'], window=2).shift(1)
-
 df['avg_close_price_day_5'] = pd.rolling_mean(df['Close'], window=5).shift(1)
-
-df['avg_close_price_day_10'] = pd.rolling_mean(df['Close'], window=10).shift(1)
-
-df['ratio_avg_close_price_2_10'] = df['avg_close_price_day_2'] / df['avg_close_price_day_10']
-
-df['std_close_price_day_2'] = pd.rolling_std(df['Close'], window=2).shift(1)
-
-df['std_close_price_day_10'] = pd.rolling_std(df['Close'], window=10).shift(1)
-
-df['ratio_std_close_price_2_10'] = df['std_close_price_day_2'] / df['std_close_price_day_10']
-
-df['avg_volume_day_2'] = pd.rolling_mean(df['Volume'], window=2).shift(1)
-
-df['avg_volume_day_10'] = pd.rolling_mean(df['Volume'], window=10).shift(1)
-
-df['ratio_volume_2_10'] = df['avg_volume_day_2'] / df['avg_volume_day_10']
-
-df['std_avg_volume_2'] = pd.rolling_std(df['avg_volume_day_2'], window=2).shift(1)
-
-df['std_avg_volume_10'] = pd.rolling_std(df['avg_volume_day_10'], window=10).shift(1)
-
-df['ratio_std_avg_volume_2_10'] = df['std_avg_volume_2'] / df['std_avg_volume_10']
-
+df['avg_close_price_day_30'] = pd.rolling_mean(df['Close'], window=30).shift(1)
+df['avg_close_price_day_365'] = pd.rolling_mean(df['Close'], window=365).shift(1)
+df['ratio_avg_close_price_5_365'] = df['avg_close_price_day_5'] / df['avg_close_price_day_365']
+df['std_close_price_day_5'] = pd.rolling_std(df['Close'], window=5).shift(1)
+df['std_close_price_day_365'] = pd.rolling_std(df['Close'], window=365).shift(1)
+df['ratio_std_close_price_5_365'] = df['std_close_price_day_5'] / df['std_close_price_day_365']
+df['avg_volume_day_5'] = pd.rolling_mean(df['Volume'], window=5).shift(1)
+df['avg_volume_day_365'] = pd.rolling_mean(df['Volume'], window=365).shift(1)
+df['ratio_volume_5_365'] = df['avg_volume_day_5'] / df['avg_volume_day_365']
+df['std_avg_volume_5'] = pd.rolling_mean(df['avg_volume_day_5'], window=5).shift(1)
+df['std_avg_volume_365'] = pd.rolling_mean(df['avg_volume_day_365'], window=365).shift(1)
+df['ratio_std_avg_volume_5_365'] = df['std_avg_volume_5'] / df['std_avg_volume_365']
 df = df[['Close'] + list(df.columns[6:])]
-
 df = df.dropna(axis=0) 
 
 predicted_values_regression = []
