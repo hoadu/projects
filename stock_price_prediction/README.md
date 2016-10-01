@@ -1,3 +1,7 @@
+Please refer to the code under the folder new_version. 
+Because the webpage of Yahoo Finance has changed, the web scraping code does not work any more. 
+See the issue discussion here https://github.com/Lili-Updating/projects/issues/1 
+-------------------------------------------------------------------------------------------------
 Here is what each program does. Customize settings.py as explained below, before running programs.
 
 data_acquisition.py
